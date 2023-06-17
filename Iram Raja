@@ -1,0 +1,381 @@
+#extracting data
+
+
+# In[4]:
+
+
+import csv
+def getstuff(filename):
+    with open(filename, "r") as csvfile:
+        datareader = csv.reader(csvfile)
+        count = 0
+        for row in datareader:
+            yield row
+            count += 1
+        else:
+            return
+        
+def getdata(filename):
+    for row in getstuff(filename):
+        yield row
+        
+def storedata(filename):
+    list=[]
+    for row in getdata(filename):
+            list.append(row) #change row into list, list variable will have all rows of all data
+    return list        
+
+
+# In[5]:
+
+
+#getting data from original format
+
+
+# In[6]:
+
+
+list=[]
+
+for a in range(1,20): #because 19 actiivties
+    if a>9:
+        activity="a"+str(a) #define file name, actvity is variable which is a plus a value converted to string
+    else:
+        activity="a0"+str(a)
+
+    for k in range(1,9):#defining the people (8 people)
+        person="p"+str(k)
+        
+        for i in range(1,61):#60 text files (5 sec segments for 5 mins each)
+            if i>9:
+                filename="s"+str(i)+".txt"
+            else:
+                filename="s0"+str(i)+".txt"
+          
+            filename="C:/Users/iramr/Documents/My Documents/COVENTRY UNI\Machine Learning/daily+and+sports+activities/data/"+activity+"/"+person+"/"+ filename 
+            sublist=[]
+            sublist.append( ["A"+str(a) ] ) #shows the names a1,a2...etc
+            for row in getdata(filename):
+                sublist.append(row)         
+            list.append(sublist)
+
+
+# In[9]:
+
+
+#write data into text file
+
+
+# In[6]:
+
+
+newlist=[]
+for i in range(0,len(list)):
+    sublist=[]
+    for j in range(0,len(list[i])):
+        for k in range(0,len(list[i][j]) ):
+            sublist.append(list[i][j][k])
+    newlist.append(sublist)
+
+
+# In[7]:
+
+
+list=newlist
+
+
+# In[8]:
+
+
+#just to check
+newlist[0]
+
+
+# In[9]:
+
+
+file = open('dailysportsdata.txt', 'w')
+list0=[]
+list0.append("Activity") #creating the activity headers (45 entries dor each number)
+list1=['T','RA','LA','RL','LL']
+list2=['x','y','z']
+list3=["acc", "gryo", "mag"]
+for L in range(1,126): #total no of data points 125 multiplied by 45(45 columns) 125 rows
+    for i in range(0,5):
+        limb=list1[i]
+        for j in range(0,3):
+            axis=list3[j]
+            for k in range (0,3):
+                type=list2[k]
+                list0.append(limb+"-"+type+"_"+axis+ " " + "(" + str(L) + ")")
+list0=",".join(list0)
+
+
+# In[10]:
+
+
+#to check
+list0 
+
+
+# In[11]:
+
+
+#attribute row
+
+
+# In[18]:
+
+
+file = open('dailysportsdata.txt', 'w')
+file.write("%s\n" % list0)
+for item in list:
+    item=",".join(item)
+    file.write("%s\n" % item)
+
+
+# In[13]:
+
+
+#import libraries
+
+
+# In[2]:
+
+
+import numpy as np
+import pandas as pd 
+import seaborn as sns 
+import matplotlib.pyplot as plt
+get_ipython().run_line_magic('matplotlib', 'inline')
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import Normalizer
+from sklearn.pipeline import make_pipeline
+from sklearn.pipeline import Pipeline
+
+
+# In[15]:
+
+
+#the data 
+
+
+# In[8]:
+
+
+data = pd.read_table('dailysportsdata.txt', delimiter=',', header=0)
+data.head() 
+
+
+# In[10]:
+
+
+data.Activity.unique()
+
+
+# In[11]:
+
+
+data.isna().sum() #sum of null vals
+
+
+# In[12]:
+
+
+data_indpt = data.iloc[:,1:len(data.columns)]
+
+
+# In[13]:
+
+
+pca_25 = PCA(n_components = 700, random_state = 0)
+pca_25.fit_transform(data_indpt)
+
+
+# In[14]:
+
+
+print("Variance explained by all 700 components = ", sum(pca_25.explained_variance_ratio_ * 100).round(decimals = 2))
+
+
+# In[15]:
+
+
+plt.plot(np.cumsum(pca_25.explained_variance_ratio_))
+plt.xlabel('No. of components')
+plt.ylabel('Explained Variance')
+plt.savefig('elbow_plot.png', dpi = 100)
+
+
+# In[16]:
+
+
+pca_25 = pca_25.fit_transform(data_indpt)
+pca_25
+
+
+# In[17]:
+
+
+principalDf = pd.DataFrame(data = pca_25)
+principalDf
+
+
+# In[18]:
+
+
+finalDf = pd.concat([data["Activity"], principalDf], axis=1)
+finalDf
+
+
+# In[19]:
+
+
+#decision tree
+
+
+# In[20]:
+
+
+yP=finalDf.iloc[:,0]
+XP=finalDf.iloc[ :, 1:701]
+
+
+# In[21]:
+
+
+from sklearn.model_selection import train_test_split
+X_train,X_test,y_train,y_test= train_test_split(XP,yP,train_size = 0.8, test_size = 0.2, random_state = 0)
+
+
+# In[22]:
+
+
+from sklearn.tree import DecisionTreeClassifier
+
+
+# In[23]:
+
+
+get_ipython().run_cell_magic('time', '', 'classifier1=DecisionTreeClassifier()\nclassifier1.fit(X_train,y_train)\npreds1=classifier1.predict(X_test)')
+
+
+# In[24]:
+
+
+from sklearn.model_selection import cross_val_score
+all_accuracies = cross_val_score(estimator=classifier1, X=X_train, y=y_train, cv=5)
+print(all_accuracies) #accuracy scores for each fold
+
+
+# In[25]:
+
+
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, ConfusionMatrixDisplay
+
+print(confusion_matrix(y_test,preds1))
+print(classification_report(y_test,preds1))
+print(accuracy_score(y_test, preds1))
+
+
+# In[26]:
+
+
+cms = confusion_matrix(y_test, preds1, labels= classifier1.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=cms, display_labels= classifier1.classes_)
+disp.plot()
+plt.show()
+
+
+# In[27]:
+
+
+#random forest classifier
+
+
+# In[28]:
+
+
+from sklearn.ensemble import RandomForestClassifier
+classifier2=RandomForestClassifier()
+
+
+# In[30]:
+
+
+get_ipython().run_cell_magic('time', '', 'classifier2.fit(X_train,y_train)\npreds2=classifier2.predict(X_test)')
+
+
+# In[31]:
+
+
+print(confusion_matrix(y_test,preds2))
+print(classification_report(y_test,preds2))
+print(accuracy_score(y_test, preds2))
+
+
+# In[32]:
+
+
+cms = confusion_matrix(y_test, preds2, labels= classifier2.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=cms, display_labels= classifier2.classes_)
+disp.plot()
+plt.show()
+
+
+# In[33]:
+
+
+#support vector machine
+
+
+# In[34]:
+
+
+from sklearn.svm import SVC
+
+
+# In[35]:
+
+
+get_ipython().run_cell_magic('time', '', "classifier3 = SVC(kernel='linear')\n\nclassifier3.fit(X_train, y_train)\npreds3 = classifier3.predict(X_test)")
+
+
+# In[36]:
+
+
+all_accuracies = cross_val_score(estimator=classifier3 , X=X_train, y=y_train, cv=5)
+print(all_accuracies)
+
+print(confusion_matrix(y_test, preds3))
+print(classification_report(y_test, preds3))
+print(accuracy_score(y_test, preds3))
+
+
+# In[37]:
+
+
+cms = confusion_matrix(y_test, preds3, labels= classifier3.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=cms, display_labels= classifier2.classes_)
+disp.plot()
+plt.show()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
